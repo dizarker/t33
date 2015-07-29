@@ -5,9 +5,6 @@ void nrfInit (void)
 	GPIO_InitTypeDef sGPIO;
 	SPI_InitTypeDef sSPI;
 	
-	RCC_AHB1PeriphClockCmd (RCC_AHB1Periph_GPIOA | RCC_AHB1Periph_GPIOB | RCC_AHB1Periph_GPIOC, ENABLE);
-	RCC_APB2PeriphClockCmd (RCC_APB2Periph_SPI1, ENABLE);
-	
 	// Инициализируем лапки
 	// SPI
 	sGPIO.GPIO_Mode = GPIO_Mode_AF;
@@ -65,43 +62,5 @@ uint8_t spiXmit (uint8_t byte)
 	return temp;
 }
 
-void _delay_us (void)
-{
-	__nop();
-	__nop();
-	__nop();
-	__nop();
-	__nop();
-	__nop();
-	__nop();
-	__nop();
-	__nop();
-	__nop();
-	__nop();
-	__nop();
-	__nop();
-	__nop();
-	__nop();
-	__nop();
-	__nop();
-	__nop();
-	__nop();
-	__nop();
-	__nop();
-	__nop();
-	__nop();
-	__nop();
-	__nop();
-	__nop();
-	__nop();
-	__nop();
-	__nop();
-	__nop();
-	__nop();
-	__nop();
-	__nop();
-	__nop();
-	__nop();
-	__nop();
-}
+
 

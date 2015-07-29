@@ -10,7 +10,7 @@
 #define SPI_MISO_Pin					6
 #define SPI_MOSI_Pin					7
 
-#define CHIPEN_PORT						GPIOC
+#define CHIPEN_PORT						GPIOA
 #define CHIPEN_Pin						8
 
 #define INT_PORT						GPIOC

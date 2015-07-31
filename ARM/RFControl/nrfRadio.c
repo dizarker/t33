@@ -65,6 +65,8 @@ void nrfInit (nrf24l01_t *iData)
 	// Старт ап
 	nrfWriteReg (NRF_REG_CONFIG, RF_CFG_REG_VAL);
 	
+	delay_us (10000);
+	
 	iData->pipeMask = 0x01;
 }
 
@@ -77,8 +79,17 @@ uint8_t spiXmit (uint8_t byte)
 
 void delay_us (uint16_t delay)
 {
-	TIM4->PSC = 100;
+	TIM4->PSC = 99;
 	TIM4->ARR = delay;
+	TIM4->EGR = TIM_EGR_UG;
+	TIM4->CR1 = (TIM_CR1_CEN | TIM_CR1_OPM);
+	while ((TIM4->CR1 & TIM_CR1_CEN) != 0);
+}
+
+void delay_ms (uint16_t delay)
+{
+	TIM4->PSC = 9999;
+	TIM4->ARR = delay * 10;
 	TIM4->EGR = TIM_EGR_UG;
 	TIM4->CR1 = (TIM_CR1_CEN | TIM_CR1_OPM);
 	while ((TIM4->CR1 & TIM_CR1_CEN) != 0);
@@ -106,7 +117,7 @@ void nrfWriteRegMulti (uint8_t addr, uint8_t *data, uint8_t len)
 	delay_us (1);
 }
 
-uint8_t nrfReadReg (uint8_t addr, uint8_t value)
+uint8_t nrfReadReg (uint8_t addr)
 {
 	uint8_t n;
 	

@@ -135,9 +135,10 @@ typedef struct nrf24l01 {
 void nrfInit (nrf24l01_t *iData);
 uint8_t spiXmit (uint8_t byte);
 void delay_us (uint16_t delay);
+void delay_ms (uint16_t delay);
 void nrfWriteReg (uint8_t addr, uint8_t value);
 void nrfWriteRegMulti (uint8_t addr, uint8_t *data, uint8_t len);
-uint8_t nrfReadReg (uint8_t addr, uint8_t value);
+uint8_t nrfReadReg (uint8_t addr);
 void nrfReadRegMulti (uint8_t addr, uint8_t *data, uint8_t len);
 void nrfWriteData (uint8_t cmd, uint8_t *data, uint8_t len);
 void nrfReadData (uint8_t cmd, uint8_t *data, uint8_t len);

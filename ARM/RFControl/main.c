@@ -7,7 +7,8 @@ uint8_t temp;
 
 nrf24l01_t radio;
 
-uint8_t myAddr1[] = {0x01, 0x02, 0x03, 0x04, 0x05};
+uint8_t myAddr[] = {0x01, 0x02, 0x03, 0x04, 0x05};
+uint8_t txAddr[] = {0x0a, 0x0b, 0x0c, 0x0d, 0x0e};
 
 int main (void)
 {
@@ -17,14 +18,21 @@ int main (void)
 	
 	radio.channel = 0;
 	radio.PALevel = PALevel_m18dBm;
-	radio.pipe[1].enable = ENABLE;
-	radio.pipe[1].pipeRxLen = 32;
-	memcpy (&radio.pipe[1].pipeRxAddr, myAddr1, sizeof (myAddr1));
+	radio.AddressWidth = AddressWidth_5bytes;
+	radio.DataRate = DataRate_2Mbps;
+	
 	
 	nrfInit (&radio);
+	nrfSetMasterRxAddr (myAddr, 32, &radio.pipeMask);
+	nrfSetTxAddress (txAddr);
 	
 	while (1)
 	{
+		delay_us (100);
 		
+		nrfTransmiteData ((uint8_t*)"12345", 5);	
+		CHIPEN_PORT->ODR |= (1 << CHIPEN_Pin);
+		delay_us (20);
+		CHIPEN_PORT->ODR &=~ (1 << CHIPEN_Pin);
 	}
 }

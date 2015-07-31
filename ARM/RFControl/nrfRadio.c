@@ -34,7 +34,8 @@ void nrfInit (nrf24l01_t *iData)
 	GPIO_Init (INT_PORT, &sGPIO);
 	
 	SPI_PORT->ODR |= (1 << SPI_CS_Pin);
-	CHIPEN_PORT->ODR |= (1 << CHIPEN_Pin);
+	CHIPEN_PORT->ODR &=~
+	(1 << CHIPEN_Pin);
 	
 	// Инициализируем SPI
 	sSPI.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_32;
@@ -51,7 +52,20 @@ void nrfInit (nrf24l01_t *iData)
 	
 	// А теперь начинаем конфигурировать
 	nrfSetChannel (iData->channel);
-	nrfPipeConfig (iData->pipe);
+		
+	// Выставляем длину адреса
+	nrfWriteReg (NRF_REG_AWIDTH, iData->AddressWidth);
+	
+	// Настройки повторов
+	nrfWriteReg (NRF_REG_RETR, ((iData->RetransmissionDelay << 4) | (iData->RetransmissionCount)));	
+	
+	// Настройки канала и усилителя
+	nrfWriteReg (NRF_REG_RFSETUP, (iData->DataRate << 3) | (iData->PALevel << 1) | 0x01);
+	
+	// Старт ап
+	nrfWriteReg (NRF_REG_CONFIG, RF_CFG_REG_VAL);
+	
+	iData->pipeMask = 0x01;
 }
 
 uint8_t spiXmit (uint8_t byte)
@@ -112,8 +126,32 @@ void nrfReadRegMulti (uint8_t addr, uint8_t *data, uint8_t len)
 	
 	SPI_PORT->ODR &=~ (1 << SPI_CS_Pin);
 	delay_us (1);
-	spiXmit (addr | 0x20);
+	spiXmit (addr);
 	for (n = 0; n < len; n++) *(data + n) = spiXmit (0x00);	
+	SPI_PORT->ODR |= (1 << SPI_CS_Pin);
+	delay_us (1);
+}
+
+void nrfWriteData (uint8_t cmd, uint8_t *data, uint8_t len)
+{
+	uint8_t n;
+	
+	SPI_PORT->ODR &=~ (1 << SPI_CS_Pin);
+	delay_us (1);
+	spiXmit (cmd);
+	for (n = 1; n <= len; n++) spiXmit (*(data + len - n));	
+	SPI_PORT->ODR |= (1 << SPI_CS_Pin);
+	delay_us (1);
+}
+
+void nrfReadData (uint8_t cmd, uint8_t *data, uint8_t len)
+{
+	uint8_t n;
+	
+	SPI_PORT->ODR &=~ (1 << SPI_CS_Pin);
+	delay_us (1);
+	spiXmit (cmd);
+	for (n = 1; n <= len; n++) *(data + len - n) = spiXmit (0x00);	
 	SPI_PORT->ODR |= (1 << SPI_CS_Pin);
 	delay_us (1);
 }
@@ -138,66 +176,61 @@ void nrfSetChannel (uint8_t channel)
 	nrfWriteReg (NRF_REG_CHANNEL, channel);
 }
 
-void nrfPipeConfig (pipe_t *pipe0)
+void nrfSetTxAddress (uint8_t *addr)
 {
-	uint8_t pipeMask = 0, n;
-	pipe_t *pnt = pipe0;
-	uint8_t addr[5], regAddr, regLen;
+	uint8_t bAddr[5];
+	bAddr[0] = addr[4];
+	bAddr[1] = addr[3];
+	bAddr[2] = addr[2];
+	bAddr[3] = addr[1];
+	bAddr[4] = addr[0];
 	
-	for (n = 0; n < 6; n++)
-	{
-		if (pnt->enable == ENABLE) 
-		{
-			pipeMask |= (1 << n);
+	nrfWriteRegMulti (NRF_REG_RXADDR_P0, bAddr, 5);
+	nrfWriteRegMulti (NRF_REG_TXADDR, bAddr, 5);
 	
-			// Пайп заявлен как рабочий. Поэтому отправим туды адрес и пэйлоад лен
-			switch (n)
-			{
-				case 0:
-					regAddr = NRF_REG_RXADDR_P0;
-					regLen = NRF_REG_RXPLEN_P0;
-					break;
-				case 1:
-					regAddr = NRF_REG_RXADDR_P1;
-					regLen = NRF_REG_RXPLEN_P1;
-					break;
-				case 2:
-					regAddr = NRF_REG_RXADDR_P2;
-					regLen = NRF_REG_RXPLEN_P2;
-					break;
-				case 3:
-					regAddr = NRF_REG_RXADDR_P3;
-					regLen = NRF_REG_RXPLEN_P3;
-					break;
-				case 4:
-					regAddr = NRF_REG_RXADDR_P4;
-					regLen = NRF_REG_RXPLEN_P4;
-					break;
-				case 5:
-					regAddr = NRF_REG_RXADDR_P5;
-					regLen = NRF_REG_RXPLEN_P5;
-					break;
+}
 
-				default: return;
-			}
-			
-			if (n < 2)
-			{
-				addr[0] = pnt->pipeRxAddr[4];
-				addr[1] = pnt->pipeRxAddr[3];
-				addr[2] = pnt->pipeRxAddr[2];
-				addr[3] = pnt->pipeRxAddr[1];
-				addr[4] = pnt->pipeRxAddr[0];			
-				
-				nrfWriteRegMulti (regAddr, addr, sizeof (addr));	
-			}
-			else nrfWriteReg (regAddr, pnt->pipeRxAddr[0]);	
-			
-			nrfWriteReg (regLen, pnt->pipeRxLen);
-		}
-		
-		pnt++;
-	}
-		
-	nrfWriteReg (NRF_REG_ENRXADDRR, pipeMask);
+void nrfSetMasterRxAddr (uint8_t *addr, uint8_t rxLen, uint8_t *mask)
+{
+	uint8_t bAddr[5];
+	bAddr[0] = addr[4];
+	bAddr[1] = addr[3];
+	bAddr[2] = addr[2];
+	bAddr[3] = addr[1];
+	bAddr[4] = addr[0];
+
+	*mask |= NRF_Pipe1;
+	
+	nrfWriteRegMulti (NRF_REG_RXADDR_P1, bAddr, 5);
+	nrfWriteReg (NRF_REG_ENSHOCKBST, *mask);
+	nrfWriteReg (NRF_REG_ENRXADDR, *mask);
+}
+
+void nrfPipeAdd (uint8_t pipe, uint8_t addr, uint8_t *mask)
+{
+	// Номер пайпа не может быть меньше 2 и больше 5
+	if ((pipe < 2) || (pipe > 5)) return;
+	
+	*mask |= (1 << pipe);
+	nrfWriteReg (NRF_REG_RXADDR_P0 + pipe, addr);
+	nrfWriteReg (NRF_REG_ENSHOCKBST, *mask);
+	nrfWriteReg (NRF_REG_ENRXADDR, *mask);
+}
+
+void nrfPipeDel (uint8_t pipe, uint8_t *mask)
+{
+	if ((pipe < 2) || (pipe > 5)) return;
+	
+	*mask &=~ (1 << pipe);
+	nrfWriteReg (NRF_REG_ENSHOCKBST, *mask);
+	nrfWriteReg (NRF_REG_ENRXADDR, *mask);
+}
+
+void nrfTransmiteData (uint8_t *data, uint8_t len)
+{
+	// Загружаем данные в FIFO
+	nrfWriteData (NRF_CMD_WRITE_TX, data, len);
+	
+	// Начинаем отправку
+	nrfWriteReg (NRF_REG_CONFIG, (RF_CFG_REG_VAL &~(0x01)));
 }

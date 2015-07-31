@@ -18,9 +18,18 @@
 
 #define NRF_CMD_READREG				0x00
 #define NRF_CMD_WRITEREG			0x20
+#define NRF_CMD_WRITE_TX			0xa0
 
-#define NRF_REG_ENRXADDRR			0x02
+#define NRF_REG_CONFIG				0x00
+#define NRF_REG_ENSHOCKBST		0x01
+#define NRF_REG_ENRXADDR			0x02
+#define NRF_REG_AWIDTH				0x03
+#define NRF_REG_RETR					0x04
 #define NRF_REG_CHANNEL				0x05
+#define NRF_REG_RFSETUP				0x06
+#define NRF_REG_STATUS				0x07
+#define NRF_REG_OBSERVETX			0x08
+
 #define NRF_REG_RXADDR_P0			0x0a
 #define NRF_REG_RXADDR_P1			0x0b
 #define NRF_REG_RXADDR_P2			0x0c
@@ -35,6 +44,7 @@
 #define NRF_REG_RXPLEN_P4			0x15
 #define NRF_REG_RXPLEN_P5			0x16
 
+#define RF_CFG_REG_VAL				0x4b
 
 #define NRF_Pipe0							((uint8_t)0x01)
 #define NRF_Pipe1							((uint8_t)0x02)
@@ -119,6 +129,7 @@ typedef struct nrf24l01 {
 	RETR_WAIT_t RetransmissionDelay;			// Задержка перед переотправкой
 	uint8_t TxAddress[5];									// Адрес, куда будем пулять
 	pipe_t pipe[6];												// Структуры с пайпами
+	uint8_t pipeMask;											
 } nrf24l01_t;
 
 void nrfInit (nrf24l01_t *iData);
@@ -128,8 +139,15 @@ void nrfWriteReg (uint8_t addr, uint8_t value);
 void nrfWriteRegMulti (uint8_t addr, uint8_t *data, uint8_t len);
 uint8_t nrfReadReg (uint8_t addr, uint8_t value);
 void nrfReadRegMulti (uint8_t addr, uint8_t *data, uint8_t len);
+void nrfWriteData (uint8_t cmd, uint8_t *data, uint8_t len);
+void nrfReadData (uint8_t cmd, uint8_t *data, uint8_t len);
 uint8_t nrfGetStatus (void);
 void nrfSetChannel (uint8_t channel);
-void nrfPipeConfig (pipe_t *pipe0);
+void nrfPipeConfig (pipe_t *pipe, uint8_t n);
+void nrfSetTxAddress (uint8_t *addr);
+void nrfSetMasterRxAddr (uint8_t *addr, uint8_t rxLen, uint8_t *mask);
+void nrfPipeAdd (uint8_t pipe, uint8_t addr, uint8_t *mask);
+void nrfPipeDel (uint8_t pipe, uint8_t *mask);
+void nrfTransmiteData (uint8_t *data, uint8_t len);
 
 #endif
